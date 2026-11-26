@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.example.win11launcher"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.win11launcher"
