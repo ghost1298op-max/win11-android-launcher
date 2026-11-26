@@ -53,7 +53,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -231,7 +230,6 @@ fun Win11BootScreen(onSkip: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // شعار ويندوز 11 رباعي الأجزاء
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Box(modifier = Modifier.size(28.dp).background(Color(0xFF00A4EF)))
@@ -376,7 +374,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
         closeAllPopups()
     }
 
-    // الصوت
     val maxVolume = remember(audioManager) {
         runCatching { audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC)?.coerceAtLeast(1) ?: 15 }.getOrDefault(15)
     }
@@ -410,7 +407,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
         }
     }
 
-    // البطارية
     var batteryLevel by remember { mutableIntStateOf(100) }
     var isCharging by remember { mutableStateOf(false) }
     DisposableEffect(context) {
@@ -452,7 +448,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
         }
     }
 
-    // الوقت والتاريخ
     var nowText by remember { mutableStateOf(formatCurrentTimeDate()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -461,7 +456,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
         }
     }
 
-    // التطبيقات المثبتة بشكل آمن وخفيف
     val installedApps = remember {
         loadInstalledAppsSafely(context)
     }
@@ -477,14 +471,12 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
             )
         }
 
-        // مساحة سطح المكتب (فوق شريط المهام المصغر 42.dp)
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(bottom = 42.dp)
                 .clickable { closeAllPopups() }
         ) {
-            // أيقونات سطح المكتب بأبعاد أصغر ومرتبة
             Column(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -522,7 +514,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 )
             }
 
-            // النوافذ المفتوحة بأبعاد أصغر مناسبة لشاشة الهاتف
             windows.forEachIndexed { idx, win ->
                 if (!win.isMinimized) {
                     FloatingDesktopWindow(
@@ -565,7 +556,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 }
             }
 
-            // قائمة Start المحسنة بأبعاد أصغر وعرض التطبيقات
             if (showStartMenu) {
                 val filteredApps = remember(installedApps, searchQuery) {
                     if (searchQuery.isBlank()) installedApps
@@ -678,7 +668,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 }
             }
 
-            // سلايدر الصوت السريع
             if (showVolumeSlider) {
                 Surface(
                     modifier = Modifier
@@ -711,7 +700,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 }
             }
 
-            // المركز السريع
             if (showQuickSettings) {
                 Surface(
                     modifier = Modifier
@@ -743,7 +731,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 }
             }
 
-            // التاريخ والوقت
             if (showCalendarPopup) {
                 Surface(
                     modifier = Modifier
@@ -764,7 +751,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
             }
         }
 
-        // شريط المهام السفلي بأبعاد أصغر (42.dp)
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -860,16 +846,15 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
 
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = {
-                            searchQuery = it
-                            if (it.isNotBlank()) showStartMenu = true
+                        onValueChange = { newText ->
+                            searchQuery = newText
+                            if (newText.isNotBlank()) showStartMenu = true
                         },
                         placeholder = { Text("بحث", fontSize = 10.sp, color = Color(0xFF9CA3AF)) },
                         singleLine = true,
-                        modifier = Modifier.width(105.dp).height(32.dp),
+                        modifier = Modifier.width(105.dp).height(34.dp),
                         shape = RoundedCornerShape(14.dp),
-                        textStyle = TextStyle(color = Color.White, fontSize = 11.sp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        textStyle = TextStyle(color = Color.White, fontSize = 11.sp)
                     )
 
                     windows.forEachIndexed { index, w ->
@@ -1079,7 +1064,6 @@ fun FloatingDesktopWindow(
         border = BorderStroke(1.dp, Color(0x28FFFFFF))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // شريط العنوان القابل للسحب
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1149,11 +1133,10 @@ fun FloatingDesktopWindow(
                             ) {
                                 OutlinedTextField(
                                     value = address,
-                                    onValueChange = { address = it },
+                                    onValueChange = { updatedAddr -> address = updatedAddr },
                                     singleLine = true,
-                                    modifier = Modifier.weight(1f).height(36.dp),
-                                    textStyle = TextStyle(color = Color.White, fontSize = 11.sp),
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                                    modifier = Modifier.weight(1f).height(40.dp),
+                                    textStyle = TextStyle(color = Color.White, fontSize = 11.sp)
                                 )
                                 Button(
                                     onClick = {
@@ -1225,9 +1208,9 @@ fun FloatingDesktopWindow(
                             }
                             OutlinedTextField(
                                 value = noteText,
-                                onValueChange = { updated ->
-                                    noteText = updated
-                                    prefs.edit().putString("saved_note", updated).apply()
+                                onValueChange = { updatedNote ->
+                                    noteText = updatedNote
+                                    prefs.edit().putString("saved_note", updatedNote).apply()
                                     savedBadge = "محفوظ تلقائياً"
                                 },
                                 placeholder = { Text("اكتب ملاحظاتك هنا (تُحفظ تلقائياً)...", color = Color(0xFF9CA3AF), fontSize = 11.sp) },
@@ -1269,7 +1252,7 @@ fun FileManagerWindowContent(
         runCatching { Environment.getExternalStorageDirectory() }.getOrNull()
     }
     var currentDir by remember { mutableStateOf(rootDir) }
-    var activeTab by remember { mutableStateOf("files") } // "files" or "apps"
+    var activeTab by remember { mutableStateOf("files") }
 
     val storageInfo = remember {
         runCatching {
@@ -1291,7 +1274,6 @@ fun FileManagerWindowContent(
     }
 
     Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        // شريط علوي للملفات والتطبيقات
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
