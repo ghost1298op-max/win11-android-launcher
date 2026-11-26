@@ -21,12 +21,10 @@ import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,7 +57,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.OptIn
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -222,22 +219,12 @@ fun Win11AssetIcon(
 }
 
 @SuppressLint("SetJavaScriptEnabled")
-@OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
     val context = LocalContext.current
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
 
-    val wallpapers = remember {
-        listOf(
-            "wall_win11" to "ويندوز 11 الرسمي",
-            "wall_win11_dark" to "ويندوز 11 داكن",
-            "wall_win10" to "ويندوز 10 كلاسيك",
-            "wall_ascent" to "قمة الجبل",
-            "wall_autumn" to "الخريف",
-            "wall_azul" to "الأزرق"
-        )
-    }
     var selectedWallpaper by remember { mutableStateOf("wall_win11") }
     var searchQuery by remember { mutableStateOf("") }
     var showStartMenu by remember { mutableStateOf(false) }
@@ -285,7 +272,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
         showCalendarPopup = false
     }
 
-    // حالة الصوت
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1) }
     var currentVolume by remember {
         mutableIntStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
@@ -304,7 +290,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
         else -> "icon_vol_high"
     }
 
-    // حالة البطارية
     var batteryLevel by remember { mutableIntStateOf(100) }
     var isCharging by remember { mutableStateOf(false) }
     DisposableEffect(context) {
@@ -342,7 +327,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
         }
     }
 
-    // الوقت والتاريخ
     var nowText by remember { mutableStateOf(formatCurrentTimeDate()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -351,13 +335,11 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
         }
     }
 
-    // التطبيقات المثبتة على الهاتف
     val installedApps = remember(refreshTick) {
         loadInstalledApps(context)
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0A121D))) {
-        // خلفية سطح المكتب
         val wallBmp = drawableBitmapOrNull(context, selectedWallpaper)
         if (wallBmp != null) {
             Image(
@@ -368,28 +350,18 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
             )
         }
 
-        // طبقة سطح المكتب التفاعلية (ضغط عادي لإغلاق القوائم، ضغط مطوّل لقائمة الخيارات)
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(bottom = 52.dp)
-                .combinedClickable(
-                    onClick = {
-                        showStartMenu = false
-                        showContextMenu = null
-                        showQuickSettings = false
-                        showCalendarPopup = false
-                        showVolumeSlider = false
-                    },
-                    onLongClick = {
-                        showStartMenu = false
-                        showQuickSettings = false
-                        showCalendarPopup = false
-                        showContextMenu = Offset(420f, 180f)
-                    }
-                )
+                .clickable {
+                    showStartMenu = false
+                    showContextMenu = null
+                    showQuickSettings = false
+                    showCalendarPopup = false
+                    showVolumeSlider = false
+                }
         ) {
-            // أيقونات سطح المكتب الأساسية
             Column(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -439,7 +411,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 )
             }
 
-            // النوافذ الحرة داخل اللانشر (تحريك + تصغير + تكبير/ملء شاشة + إغلاق)
             windows.forEachIndexed { idx, win ->
                 if (!win.isMinimized) {
                     FloatingDesktopWindow(
@@ -476,7 +447,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 }
             }
 
-            // قائمة السياق (ضغط مطوّل على سطح المكتب)
             showContextMenu?.let { pos ->
                 Surface(
                     modifier = Modifier
@@ -506,7 +476,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 }
             }
 
-            // قائمة Start
             if (showStartMenu) {
                 Surface(
                     modifier = Modifier
@@ -629,7 +598,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 }
             }
 
-            // سلايدر الصوت السريع
             if (showVolumeSlider) {
                 Surface(
                     modifier = Modifier
@@ -662,7 +630,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 }
             }
 
-            // نافذة المركز السريع (صوت + بطارية + شبكة)
             if (showQuickSettings) {
                 Surface(
                     modifier = Modifier
@@ -711,7 +678,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 }
             }
 
-            // نافذة الوقت والتاريخ
             if (showCalendarPopup) {
                 Surface(
                     modifier = Modifier
@@ -732,7 +698,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
             }
         }
 
-        // شريط المهام السفلي (Taskbar)
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -747,12 +712,10 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // يسار شريط المهام (في RTL: الوقت، البطارية، الصوت، الشبكة)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // التاريخ والوقت
                     Text(
                         text = nowText,
                         color = Color.White,
@@ -769,7 +732,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                             .padding(horizontal = 6.dp, vertical = 4.dp)
                     )
 
-                    // مؤشر البطارية الديناميكي (نسبة + حالة شحن)
                     DynamicBatteryIndicator(
                         level = batteryLevel,
                         isCharging = isCharging,
@@ -780,7 +742,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                         }
                     )
 
-                    // أيقونة الصوت الديناميكية المتغيرة حسب المستوى
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -799,7 +760,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                         )
                     }
 
-                    // أيقونة الشبكة
                     Win11AssetIcon(
                         name = "icon_network",
                         fallbackText = "NET",
@@ -813,7 +773,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                     )
                 }
 
-                // وسط شريط المهام: زر Start + بحث + نوافذ مفتوحة/مصغّرة
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -852,7 +811,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                         textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 12.sp)
                     )
 
-                    // عرض النوافذ المفتوحة أو المصغّرة للتبديل السريع
                     windows.forEachIndexed { index, w ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -883,7 +841,6 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                     }
                 }
 
-                // يمين شريط المهام: زر إظهار سطح المكتب (تصغير الكل)
                 Box(
                     modifier = Modifier
                         .width(8.dp)
@@ -1061,7 +1018,6 @@ fun FloatingDesktopWindow(
         border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x38FFFFFF))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // شريط العنوان القابل للسحب والتحكم (تصغير / تكبير / إغلاق)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1104,7 +1060,6 @@ fun FloatingDesktopWindow(
                 }
             }
 
-            // محتوى النافذة حسب النوع
             Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
                 when (window.kind) {
                     WindowKind.THIS_PC -> ThisPcWindowContent(
