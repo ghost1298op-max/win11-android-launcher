@@ -5,27 +5,41 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.content.pm.ResolveInfo
+import android.graphics.drawable.Drawable
 import android.media.AudioManager
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.StatFs
+import android.view.View
+import android.view.WindowManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -36,6 +50,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -50,6 +68,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -65,11 +84,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -79,6 +101,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.delay
 import java.io.File
@@ -100,37 +123,154 @@ data class DesktopWindow(
     val iconName: String,
     val kind: WindowKind,
     val url: String = "https://www.google.com",
-    val offsetX: Float = 90f,
-    val offsetY: Float = 45f,
+    val offsetX: Float = 45f,
+    val offsetY: Float = 24f,
     val isMaximized: Boolean = false,
     val isMinimized: Boolean = false,
     val zIndex: Float = 10f
 )
 
+data class InstalledAppItem(
+    val label: String,
+    val packageName: String,
+    val icon: Drawable?
+)
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        applyImmersiveBars()
+
         runCatching {
             setContent {
                 MaterialTheme(colorScheme = darkColorScheme()) {
                     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                        Win11LauncherRoot(onExitLauncher = { finish() })
+                        AppEntryPoint(onExitLauncher = { finish() })
                     }
                 }
+            }
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) applyImmersiveBars()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyImmersiveBars()
+    }
+
+    private fun applyImmersiveBars() {
+        runCatching {
+            @Suppress("DEPRECATION")
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                window.setDecorFitsSystemWindows(false)
+                window.insetsController?.let { controller ->
+                    controller.hide(
+                        android.view.WindowInsets.Type.statusBars() or
+                            android.view.WindowInsets.Type.navigationBars()
+                    )
+                    controller.systemBarsBehavior =
+                        android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                window.decorView.systemUiVisibility = (
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                        or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                        or View.SYSTEM_UI_FLAG_FULLSCREEN
+                    )
             }
         }
     }
 }
 
 @Composable
+fun AppEntryPoint(onExitLauncher: () -> Unit) {
+    var bootCompleted by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(2400L)
+        bootCompleted = true
+    }
+
+    if (!bootCompleted) {
+        Win11BootScreen(onSkip = { bootCompleted = true })
+    } else {
+        Win11LauncherRoot(onExitLauncher = onExitLauncher)
+    }
+}
+
+@Composable
+fun Win11BootScreen(onSkip: () -> Unit) {
+    val transition = rememberInfiniteTransition(label = "boot")
+    val angle by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1100, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "spinner"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF05070B))
+            .clickable { onSkip() },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            // شعار ويندوز 11 رباعي الأجزاء
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(modifier = Modifier.size(28.dp).background(Color(0xFF00A4EF)))
+                    Box(modifier = Modifier.size(28.dp).background(Color(0xFF00A4EF)))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(modifier = Modifier.size(28.dp).background(Color(0xFF00A4EF)))
+                    Box(modifier = Modifier.size(28.dp).background(Color(0xFF00A4EF)))
+                }
+            }
+
+            Canvas(modifier = Modifier.size(26.dp)) {
+                drawArc(
+                    color = Color(0xFF38BDF8),
+                    startAngle = angle,
+                    sweepAngle = 240f,
+                    useCenter = false,
+                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+                )
+            }
+
+            Text(
+                text = "جاري تشغيل Windows 11...",
+                color = Color(0xFFCBD5E1),
+                fontSize = 12.sp
+            )
+        }
+    }
+}
+
+@Composable
 fun drawableBitmapOrNull(context: Context, name: String): ImageBitmap? {
-    return remember(context, name) {
+    return remember(name) {
         runCatching {
             val resId = context.resources.getIdentifier(name, "drawable", context.packageName)
             if (resId != 0) {
-                val d = androidx.core.content.ContextCompat.getDrawable(context, resId)
-                val w = d?.intrinsicWidth?.coerceAtLeast(1) ?: 1
-                val h = d?.intrinsicHeight?.coerceAtLeast(1) ?: 1
+                val d = ContextCompat.getDrawable(context, resId)
+                val w = d?.intrinsicWidth?.coerceAtLeast(1)?.coerceAtMost(720) ?: 1
+                val h = d?.intrinsicHeight?.coerceAtLeast(1)?.coerceAtMost(720) ?: 1
                 d?.toBitmap(w, h)?.asImageBitmap()
             } else {
                 null
@@ -158,15 +298,15 @@ fun Win11AssetIcon(
     } else {
         Box(
             modifier = modifier
-                .clip(RoundedCornerShape(8.dp))
+                .clip(RoundedCornerShape(6.dp))
                 .background(Color(0xFF1F2937))
-                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(8.dp)),
+                .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(6.dp)),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = fallbackText.take(2),
                 color = Color.White,
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
@@ -175,15 +315,19 @@ fun Win11AssetIcon(
 }
 
 @SuppressLint("SetJavaScriptEnabled")
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
     val context = LocalContext.current
     val audioManager = remember {
         runCatching { context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager }.getOrNull()
     }
+    val prefs = remember {
+        context.getSharedPreferences("win11_launcher_prefs", Context.MODE_PRIVATE)
+    }
 
-    var selectedWallpaper by remember { mutableStateOf("wall_win11") }
+    var selectedWallpaper by remember {
+        mutableStateOf(prefs.getString("wallpaper", "wall_win11") ?: "wall_win11")
+    }
     var searchQuery by remember { mutableStateOf("") }
     var showStartMenu by remember { mutableStateOf(false) }
     var showQuickSettings by remember { mutableStateOf(false) }
@@ -192,6 +336,13 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
     var zCounter by remember { mutableFloatStateOf(20f) }
 
     val windows = remember { mutableStateListOf<DesktopWindow>() }
+
+    fun closeAllPopups() {
+        showStartMenu = false
+        showQuickSettings = false
+        showCalendarPopup = false
+        showVolumeSlider = false
+    }
 
     fun openOrFocusWindow(
         id: String,
@@ -206,7 +357,7 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
             val cur = windows[existingIndex]
             windows[existingIndex] = cur.copy(isMinimized = false, zIndex = zCounter)
         } else {
-            val offsetShift = (windows.size % 5) * 26f
+            val shift = (windows.size % 4) * 18f
             windows.add(
                 DesktopWindow(
                     id = id,
@@ -214,20 +365,18 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                     iconName = iconName,
                     kind = kind,
                     url = url,
-                    offsetX = 70f + offsetShift,
-                    offsetY = 36f + offsetShift,
+                    offsetX = 28f + shift,
+                    offsetY = 18f + shift,
                     isMaximized = false,
                     isMinimized = false,
                     zIndex = zCounter
                 )
             )
         }
-        showStartMenu = false
-        showQuickSettings = false
-        showCalendarPopup = false
-        showVolumeSlider = false
+        closeAllPopups()
     }
 
+    // الصوت
     val maxVolume = remember(audioManager) {
         runCatching { audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC)?.coerceAtLeast(1) ?: 15 }.getOrDefault(15)
     }
@@ -239,19 +388,29 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
     LaunchedEffect(audioManager) {
         while (true) {
             runCatching {
-                audioManager?.let { currentVolume = it.getStreamVolume(AudioManager.STREAM_MUSIC) }
+                audioManager?.let {
+                    val v = it.getStreamVolume(AudioManager.STREAM_MUSIC)
+                    if (v != currentVolume) currentVolume = v
+                }
             }
-            delay(1000L)
+            delay(1500L)
         }
     }
-    val volumePercent = ((currentVolume.toFloat() / maxVolume.toFloat()) * 100f).roundToInt().coerceIn(0, 100)
-    val volumeIconName = when {
-        currentVolume == 0 -> "icon_vol_mute"
-        volumePercent <= 25 -> "icon_vol_low"
-        volumePercent <= 66 -> "icon_vol_mid"
-        else -> "icon_vol_high"
+    val volumePercent by remember(currentVolume, maxVolume) {
+        derivedStateOf { ((currentVolume.toFloat() / maxVolume.toFloat()) * 100f).roundToInt().coerceIn(0, 100) }
+    }
+    val volumeIconName by remember(currentVolume, volumePercent) {
+        derivedStateOf {
+            when {
+                currentVolume == 0 -> "icon_vol_mute"
+                volumePercent <= 25 -> "icon_vol_low"
+                volumePercent <= 66 -> "icon_vol_mid"
+                else -> "icon_vol_high"
+            }
+        }
     }
 
+    // البطارية
     var batteryLevel by remember { mutableIntStateOf(100) }
     var isCharging by remember { mutableStateOf(false) }
     DisposableEffect(context) {
@@ -293,12 +452,18 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
         }
     }
 
+    // الوقت والتاريخ
     var nowText by remember { mutableStateOf(formatCurrentTimeDate()) }
     LaunchedEffect(Unit) {
         while (true) {
             nowText = formatCurrentTimeDate()
-            delay(15_000L)
+            delay(20_000L)
         }
+    }
+
+    // التطبيقات المثبتة بشكل آمن وخفيف
+    val installedApps = remember {
+        loadInstalledAppsSafely(context)
     }
 
     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0A121D))) {
@@ -312,22 +477,19 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
             )
         }
 
+        // مساحة سطح المكتب (فوق شريط المهام المصغر 42.dp)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 52.dp)
-                .clickable {
-                    showStartMenu = false
-                    showQuickSettings = false
-                    showCalendarPopup = false
-                    showVolumeSlider = false
-                }
+                .padding(bottom = 42.dp)
+                .clickable { closeAllPopups() }
         ) {
+            // أيقونات سطح المكتب بأبعاد أصغر ومرتبة
             Column(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 DesktopIconItem(
@@ -360,6 +522,7 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 )
             }
 
+            // النوافذ المفتوحة بأبعاد أصغر مناسبة لشاشة الهاتف
             windows.forEachIndexed { idx, win ->
                 if (!win.isMinimized) {
                     FloatingDesktopWindow(
@@ -371,8 +534,8 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                         onMove = { dx, dy ->
                             if (!win.isMaximized) {
                                 windows[idx] = win.copy(
-                                    offsetX = (win.offsetX + dx).coerceIn(0f, 900f),
-                                    offsetY = (win.offsetY + dy).coerceIn(0f, 450f)
+                                    offsetX = (win.offsetX + dx).coerceIn(0f, 360f),
+                                    offsetY = (win.offsetY + dy).coerceIn(0f, 220f)
                                 )
                             }
                         },
@@ -387,90 +550,153 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                             windows.removeAt(idx)
                         },
                         selectedWallpaper = selectedWallpaper,
-                        onSelectWallpaper = { selectedWallpaper = it }
+                        onSelectWallpaper = { newWall ->
+                            selectedWallpaper = newWall
+                            prefs.edit().putString("wallpaper", newWall).apply()
+                        },
+                        installedApps = installedApps,
+                        onLaunchExternalApp = { app ->
+                            launchExternalAppSafely(context, app.packageName)
+                        },
+                        onOpenWindow = { id, title, icon, kind, url ->
+                            openOrFocusWindow(id, title, icon, kind, url)
+                        }
                     )
                 }
             }
 
+            // قائمة Start المحسنة بأبعاد أصغر وعرض التطبيقات
             if (showStartMenu) {
+                val filteredApps = remember(installedApps, searchQuery) {
+                    if (searchQuery.isBlank()) installedApps
+                    else installedApps.filter { it.label.contains(searchQuery, ignoreCase = true) }
+                }
+
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 8.dp)
-                        .width(460.dp)
-                        .height(320.dp)
+                        .padding(bottom = 6.dp)
+                        .width(340.dp)
+                        .height(275.dp)
                         .zIndex(95f),
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color(0xF01B1F27),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF))
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xF5181C24),
+                    border = BorderStroke(1.dp, Color(0x26FFFFFF))
                 ) {
                     Column(
-                        modifier = Modifier.fillMaxSize().padding(16.dp),
+                        modifier = Modifier.fillMaxSize().padding(10.dp),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text("قائمة Start - Win11", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                            HorizontalDivider(color = Color(0x22FFFFFF))
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Button(
-                                    onClick = { openOrFocusWindow("win_pc", "هذا الكمبيوتر", "icon_computer", WindowKind.THIS_PC) },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            StartShortcutChip("هذا الكمبيوتر") {
+                                openOrFocusWindow("win_pc", "هذا الكمبيوتر", "icon_computer", WindowKind.THIS_PC)
+                            }
+                            StartShortcutChip("الإعدادات") {
+                                openOrFocusWindow("win_settings", "الإعدادات", "icon_settings", WindowKind.SETTINGS)
+                            }
+                            StartShortcutChip("المفكرة") {
+                                openOrFocusWindow("win_notes", "المفكرة", "icon_notepad", WindowKind.NOTEPAD)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "التطبيقات (${filteredApps.size})",
+                            color = Color(0xFF93C5FD),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+
+                        LazyColumn(
+                            modifier = Modifier.weight(1f).fillMaxWidth().padding(vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(filteredApps, key = { it.packageName }) { app ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(7.dp))
+                                        .background(Color(0x12FFFFFF))
+                                        .clickable {
+                                            closeAllPopups()
+                                            launchExternalAppSafely(context, app.packageName)
+                                        }
+                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("هذا الكمبيوتر", color = Color.White, fontSize = 12.sp)
-                                }
-                                Button(
-                                    onClick = { openOrFocusWindow("win_settings", "الإعدادات", "icon_settings", WindowKind.SETTINGS) },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F2937))
-                                ) {
-                                    Text("الخلفيات", color = Color.White, fontSize = 12.sp)
-                                }
-                                Button(
-                                    onClick = { openOrFocusWindow("win_notes", "المفكرة", "icon_notepad", WindowKind.NOTEPAD) },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F2937))
-                                ) {
-                                    Text("المفكرة", color = Color.White, fontSize = 12.sp)
+                                    val appBmp = remember(app.packageName) {
+                                        runCatching {
+                                            val d = app.icon
+                                            val w = d?.intrinsicWidth?.coerceIn(16, 48) ?: 32
+                                            val h = d?.intrinsicHeight?.coerceIn(16, 48) ?: 32
+                                            d?.toBitmap(w, h)?.asImageBitmap()
+                                        }.getOrNull()
+                                    }
+                                    if (appBmp != null) {
+                                        Image(
+                                            bitmap = appBmp,
+                                            contentDescription = app.label,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = app.label,
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
                                 }
                             }
                         }
 
+                        HorizontalDivider(color = Color(0x22FFFFFF))
+
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Win11 Launcher", color = Color(0xFF9CA3AF), fontSize = 12.sp)
+                            Text("Windows 11", color = Color(0xFF9CA3AF), fontSize = 11.sp)
                             Text(
                                 text = "إغلاق اللانشر",
                                 color = Color(0xFFF87171),
-                                fontSize = 13.sp,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
                                     .clickable { onExitLauncher() }
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .padding(horizontal = 6.dp, vertical = 3.dp)
                             )
                         }
                     }
                 }
             }
 
+            // سلايدر الصوت السريع
             if (showVolumeSlider) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(start = 12.dp, bottom = 8.dp)
-                        .width(240.dp)
+                        .padding(start = 10.dp, bottom = 6.dp)
+                        .width(205.dp)
                         .zIndex(96f),
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color(0xF21E232C),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF))
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xF51E232C),
+                    border = BorderStroke(1.dp, Color(0x26FFFFFF))
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
+                    Column(modifier = Modifier.padding(10.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("مستوى الصوت", color = Color.White, fontSize = 12.sp)
-                            Text("$volumePercent%", color = Color(0xFF60A5FA), fontSize = 12.sp)
+                            Text("الصوت", color = Color.White, fontSize = 11.sp)
+                            Text("$volumePercent%", color = Color(0xFF60A5FA), fontSize = 11.sp)
                         }
                         Slider(
                             value = currentVolume.toFloat(),
@@ -485,153 +711,150 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 }
             }
 
+            // المركز السريع
             if (showQuickSettings) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(start = 16.dp, bottom = 8.dp)
-                        .width(310.dp)
+                        .padding(start = 10.dp, bottom = 6.dp)
+                        .width(245.dp)
                         .zIndex(96f),
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color(0xF21E232C),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF))
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xF51E232C),
+                    border = BorderStroke(1.dp, Color(0x26FFFFFF))
                 ) {
                     Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("المركز السريع", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("المركز السريع", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             QuickTile("الواي فاي", "icon_network", active = true)
-                            QuickTile("الخلفيات", "icon_settings", active = false) {
+                            QuickTile("الإعدادات", "icon_settings", active = false) {
                                 openOrFocusWindow("win_settings", "الإعدادات", "icon_settings", WindowKind.SETTINGS)
                             }
                         }
                         Text(
                             text = if (isCharging) "البطارية: $batteryLevel% (يشحن)" else "البطارية: $batteryLevel%",
                             color = if (isCharging) Color(0xFF4ADE80) else Color(0xFFE5E7EB),
-                            fontSize = 12.sp
+                            fontSize = 11.sp
                         )
                     }
                 }
             }
 
+            // التاريخ والوقت
             if (showCalendarPopup) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(start = 16.dp, bottom = 8.dp)
-                        .width(260.dp)
+                        .padding(start = 10.dp, bottom = 6.dp)
+                        .width(195.dp)
                         .zIndex(96f),
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color(0xF21E232C),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x33FFFFFF))
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xF51E232C),
+                    border = BorderStroke(1.dp, Color(0x26FFFFFF))
                 ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text("التاريخ والوقت", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(nowText, color = Color(0xFF93C5FD), fontSize = 13.sp)
+                    Column(modifier = Modifier.padding(10.dp)) {
+                        Text("التاريخ والوقت", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(nowText, color = Color(0xFF93C5FD), fontSize = 11.sp)
                     }
                 }
             }
         }
 
+        // شريط المهام السفلي بأبعاد أصغر (42.dp)
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(52.dp)
+                .height(42.dp)
                 .zIndex(100f),
-            color = Color(0xEB141820),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x22FFFFFF))
+            color = Color(0xF0141820),
+            border = BorderStroke(1.dp, Color(0x1AFFFFFF))
         ) {
             Row(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
                         text = nowText,
                         color = Color.White,
-                        fontSize = 11.sp,
-                        lineHeight = 14.sp,
+                        fontSize = 9.sp,
+                        lineHeight = 11.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(5.dp))
                             .clickable {
-                                showCalendarPopup = !showCalendarPopup
-                                showQuickSettings = false
-                                showVolumeSlider = false
+                                val next = !showCalendarPopup
+                                closeAllPopups()
+                                showCalendarPopup = next
                             }
-                            .padding(horizontal = 6.dp, vertical = 4.dp)
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
                     )
 
                     DynamicBatteryIndicator(
                         level = batteryLevel,
                         isCharging = isCharging,
                         modifier = Modifier.clickable {
-                            showQuickSettings = !showQuickSettings
-                            showCalendarPopup = false
-                            showVolumeSlider = false
+                            val next = !showQuickSettings
+                            closeAllPopups()
+                            showQuickSettings = next
                         }
                     )
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
+                    Win11AssetIcon(
+                        name = volumeIconName,
+                        fallbackText = "VOL",
                         modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
+                            .size(15.dp)
                             .clickable {
-                                showVolumeSlider = !showVolumeSlider
-                                showQuickSettings = false
-                                showCalendarPopup = false
+                                val next = !showVolumeSlider
+                                closeAllPopups()
+                                showVolumeSlider = next
                             }
-                            .padding(horizontal = 4.dp, vertical = 4.dp)
-                    ) {
-                        Win11AssetIcon(
-                            name = volumeIconName,
-                            fallbackText = "VOL",
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    )
 
                     Win11AssetIcon(
                         name = "icon_network",
                         fallbackText = "NET",
                         modifier = Modifier
-                            .size(18.dp)
+                            .size(15.dp)
                             .clickable {
-                                showQuickSettings = !showQuickSettings
-                                showCalendarPopup = false
-                                showVolumeSlider = false
+                                val next = !showQuickSettings
+                                closeAllPopups()
+                                showQuickSettings = next
                             }
                     )
                 }
 
                 Row(
+                    modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .size(30.dp)
+                            .clip(RoundedCornerShape(7.dp))
                             .background(if (showStartMenu) Color(0x3360A5FA) else Color(0x14FFFFFF))
                             .clickable {
-                                showStartMenu = !showStartMenu
-                                showQuickSettings = false
-                                showCalendarPopup = false
-                                showVolumeSlider = false
+                                val next = !showStartMenu
+                                closeAllPopups()
+                                showStartMenu = next
                             },
                         contentAlignment = Alignment.Center
                     ) {
                         Win11AssetIcon(
                             name = "app_icon",
                             fallbackText = "W11",
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
@@ -641,36 +864,37 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                             searchQuery = it
                             if (it.isNotBlank()) showStartMenu = true
                         },
-                        placeholder = { Text("بحث", fontSize = 12.sp, color = Color(0xFF9CA3AF)) },
+                        placeholder = { Text("بحث", fontSize = 10.sp, color = Color(0xFF9CA3AF)) },
                         singleLine = true,
-                        modifier = Modifier.width(170.dp).height(38.dp),
-                        shape = RoundedCornerShape(18.dp),
-                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 12.sp)
+                        modifier = Modifier.width(105.dp).height(32.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        textStyle = TextStyle(color = Color.White, fontSize = 11.sp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     )
 
                     windows.forEachIndexed { index, w ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
-                                .height(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
+                                .height(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
                                 .background(if (!w.isMinimized) Color(0x2860A5FA) else Color(0x14FFFFFF))
                                 .clickable {
                                     zCounter += 1f
                                     windows[index] = w.copy(isMinimized = false, zIndex = zCounter)
                                 }
-                                .padding(horizontal = 8.dp)
+                                .padding(horizontal = 6.dp)
                         ) {
                             Win11AssetIcon(
                                 name = w.iconName,
                                 fallbackText = w.title,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(13.dp)
                             )
-                            Spacer(modifier = Modifier.width(5.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = w.title,
                                 color = Color.White,
-                                fontSize = 11.sp,
+                                fontSize = 10.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -680,18 +904,31 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
 
                 Box(
                     modifier = Modifier
-                        .width(8.dp)
+                        .width(6.dp)
                         .fillMaxHeight()
                         .background(Color(0x5593C5FD))
                         .clickable {
                             for (i in windows.indices) {
                                 windows[i] = windows[i].copy(isMinimized = true)
                             }
-                            showStartMenu = false
+                            closeAllPopups()
                         }
                 )
             }
         }
+    }
+}
+
+@Composable
+fun StartShortcutChip(label: String, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(7.dp))
+            .background(Color(0xFF2563EB))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 5.dp)
+    ) {
+        Text(text = label, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -703,22 +940,22 @@ fun DesktopIconItem(
 ) {
     Column(
         modifier = Modifier
-            .width(78.dp)
-            .clip(RoundedCornerShape(8.dp))
+            .width(62.dp)
+            .clip(RoundedCornerShape(7.dp))
             .clickable(onClick = onClick)
-            .padding(6.dp),
+            .padding(4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Win11AssetIcon(
             name = iconName,
             fallbackText = label,
-            modifier = Modifier.size(38.dp)
+            modifier = Modifier.size(30.dp)
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(3.dp))
         Text(
             text = label,
             color = Color.White,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
@@ -740,26 +977,26 @@ fun DynamicBatteryIndicator(
 
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
-            .padding(horizontal = 4.dp, vertical = 4.dp),
+            .clip(RoundedCornerShape(5.dp))
+            .padding(horizontal = 3.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(3.dp)
     ) {
         Text(
             text = if (isCharging) "$level%⚡" else "$level%",
             color = Color.White,
-            fontSize = 11.sp,
+            fontSize = 9.sp,
             fontWeight = FontWeight.Medium
         )
-        Canvas(modifier = Modifier.width(22.dp).height(12.dp)) {
-            val bodyWidth = size.width - 3.dp.toPx()
+        Canvas(modifier = Modifier.width(18.dp).height(10.dp)) {
+            val bodyWidth = size.width - 2.5.dp.toPx()
             val bodyHeight = size.height
             drawRoundRect(
                 color = Color.White.copy(alpha = 0.85f),
                 topLeft = Offset.Zero,
                 size = Size(bodyWidth, bodyHeight),
                 cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx()),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.3.dp.toPx())
+                style = Stroke(width = 1.2.dp.toPx())
             )
             drawRoundRect(
                 color = Color.White.copy(alpha = 0.85f),
@@ -767,7 +1004,7 @@ fun DynamicBatteryIndicator(
                 size = Size(2.dp.toPx(), bodyHeight * 0.4f),
                 cornerRadius = CornerRadius(1.dp.toPx(), 1.dp.toPx())
             )
-            val pad = 2.dp.toPx()
+            val pad = 1.8.dp.toPx()
             val innerMaxW = (bodyWidth - pad * 2).coerceAtLeast(0f)
             val fillW = innerMaxW * (level.coerceIn(0, 100) / 100f)
             drawRoundRect(
@@ -789,26 +1026,25 @@ fun QuickTile(
 ) {
     Surface(
         modifier = Modifier
-            .width(135.dp)
-            .height(54.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .width(108.dp)
+            .height(42.dp)
+            .clip(RoundedCornerShape(8.dp))
             .clickable(onClick = onClick),
         color = if (active) Color(0xFF2563EB) else Color(0x22FFFFFF),
-        shape = RoundedCornerShape(10.dp)
+        shape = RoundedCornerShape(8.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp),
+            modifier = Modifier.padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Win11AssetIcon(name = iconName, fallbackText = title, modifier = Modifier.size(18.dp))
-            Text(text = title, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Win11AssetIcon(name = iconName, fallbackText = title, modifier = Modifier.size(15.dp))
+            Text(text = title, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FloatingDesktopWindow(
     window: DesktopWindow,
@@ -818,31 +1054,36 @@ fun FloatingDesktopWindow(
     onMinimize: () -> Unit,
     onClose: () -> Unit,
     selectedWallpaper: String,
-    onSelectWallpaper: (String) -> Unit
+    onSelectWallpaper: (String) -> Unit,
+    installedApps: List<InstalledAppItem>,
+    onLaunchExternalApp: (InstalledAppItem) -> Unit,
+    onOpenWindow: (String, String, String, WindowKind, String) -> Unit
 ) {
+    val context = LocalContext.current
     val modifier = if (window.isMaximized) {
         Modifier
             .fillMaxSize()
             .zIndex(window.zIndex)
     } else {
         Modifier
-            .width(640.dp)
-            .height(360.dp)
+            .width(355.dp)
+            .height(245.dp)
             .offset { IntOffset(window.offsetX.roundToInt(), window.offsetY.roundToInt()) }
             .zIndex(window.zIndex)
     }
 
     Surface(
         modifier = modifier.clickable(onClick = onFocus),
-        shape = if (window.isMaximized) RoundedCornerShape(0.dp) else RoundedCornerShape(12.dp),
-        color = Color(0xF5181C24),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x38FFFFFF))
+        shape = if (window.isMaximized) RoundedCornerShape(0.dp) else RoundedCornerShape(10.dp),
+        color = Color(0xF8181C24),
+        border = BorderStroke(1.dp, Color(0x28FFFFFF))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            // شريط العنوان القابل للسحب
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(38.dp)
+                    .height(30.dp)
                     .background(Color(0xFF222733))
                     .pointerInput(window.id, window.isMaximized) {
                         detectDragGestures(
@@ -853,40 +1094,49 @@ fun FloatingDesktopWindow(
                             }
                         )
                     }
-                    .padding(horizontal = 10.dp),
+                    .padding(horizontal = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Win11AssetIcon(
                         name = window.iconName,
                         fallbackText = window.title,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(14.dp)
                     )
                     Text(
                         text = window.title,
                         color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     WindowControlBtn("—", onClick = onMinimize)
                     WindowControlBtn(if (window.isMaximized) "❐" else "□", onClick = onToggleMaximize)
                     WindowControlBtn("✕", isClose = true, onClick = onClose)
                 }
             }
 
-            Box(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+            Box(modifier = Modifier.fillMaxSize().padding(8.dp)) {
                 when (window.kind) {
-                    WindowKind.THIS_PC -> ThisPcWindowContent()
+                    WindowKind.THIS_PC -> FileManagerWindowContent(
+                        installedApps = installedApps,
+                        onLaunchExternalApp = onLaunchExternalApp
+                    )
                     WindowKind.SETTINGS -> SettingsWindowContent(
                         selectedWallpaper = selectedWallpaper,
-                        onSelectWallpaper = onSelectWallpaper
+                        onSelectWallpaper = onSelectWallpaper,
+                        onOpenNotepad = {
+                            onOpenWindow("win_notes", "المفكرة", "icon_notepad", WindowKind.NOTEPAD, "")
+                        }
                     )
                     WindowKind.BROWSER -> {
                         var address by remember(window.url) { mutableStateOf(window.url) }
@@ -895,53 +1145,96 @@ fun FloatingDesktopWindow(
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 OutlinedTextField(
                                     value = address,
                                     onValueChange = { address = it },
                                     singleLine = true,
-                                    modifier = Modifier.weight(1f).height(44.dp),
-                                    textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 12.sp)
+                                    modifier = Modifier.weight(1f).height(36.dp),
+                                    textStyle = TextStyle(color = Color.White, fontSize = 11.sp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                                 )
                                 Button(
                                     onClick = {
                                         val clean = if (address.startsWith("http")) address else "https://$address"
                                         loadUrl = clean
                                     },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                                    modifier = Modifier.height(36.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
                                 ) {
-                                    Text("ذهاب", fontSize = 12.sp, color = Color.White)
+                                    Text("ذهاب", fontSize = 11.sp, color = Color.White)
                                 }
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
                             AndroidView(
-                                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(8.dp)),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(6.dp)),
                                 factory = { ctx ->
                                     WebView(ctx).apply {
                                         runCatching {
                                             settings.javaScriptEnabled = true
                                             settings.domStorageEnabled = true
+                                            settings.loadWithOverviewMode = true
+                                            settings.useWideViewPort = true
                                             webViewClient = WebViewClient()
                                             loadUrl(loadUrl)
                                         }
                                     }
                                 },
                                 update = { wv ->
-                                    runCatching { if (wv.url != loadUrl) wv.loadUrl(loadUrl) }
+                                    runCatching {
+                                        if (wv.url != loadUrl && loadUrl.isNotBlank()) wv.loadUrl(loadUrl)
+                                    }
                                 }
                             )
                         }
                     }
                     WindowKind.NOTEPAD -> {
-                        var noteText by remember { mutableStateOf("") }
-                        OutlinedTextField(
-                            value = noteText,
-                            onValueChange = { noteText = it },
-                            placeholder = { Text("اكتب ملاحظاتك هنا...", color = Color(0xFF9CA3AF)) },
+                        val prefs = remember {
+                            context.getSharedPreferences("win11_notepad_prefs", Context.MODE_PRIVATE)
+                        }
+                        var noteText by remember {
+                            mutableStateOf(prefs.getString("saved_note", "") ?: "")
+                        }
+                        var savedBadge by remember { mutableStateOf("محفوظ") }
+
+                        Column(
                             modifier = Modifier.fillMaxSize(),
-                            textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 13.sp)
-                        )
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(savedBadge, color = Color(0xFF4ADE80), fontSize = 10.sp)
+                                Button(
+                                    onClick = {
+                                        prefs.edit().putString("saved_note", noteText).apply()
+                                        savedBadge = "تم الحفظ ✓"
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                                    modifier = Modifier.height(28.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
+                                ) {
+                                    Text("حفظ", fontSize = 10.sp, color = Color.White)
+                                }
+                            }
+                            OutlinedTextField(
+                                value = noteText,
+                                onValueChange = { updated ->
+                                    noteText = updated
+                                    prefs.edit().putString("saved_note", updated).apply()
+                                    savedBadge = "محفوظ تلقائياً"
+                                },
+                                placeholder = { Text("اكتب ملاحظاتك هنا (تُحفظ تلقائياً)...", color = Color(0xFF9CA3AF), fontSize = 11.sp) },
+                                modifier = Modifier.fillMaxSize(),
+                                textStyle = TextStyle(color = Color.White, fontSize = 12.sp)
+                            )
+                        }
                     }
                 }
             }
@@ -957,45 +1250,171 @@ fun WindowControlBtn(
 ) {
     Box(
         modifier = Modifier
-            .size(28.dp)
-            .clip(RoundedCornerShape(6.dp))
+            .size(22.dp)
+            .clip(RoundedCornerShape(5.dp))
             .background(if (isClose) Color(0x33EF4444) else Color(0x18FFFFFF))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = symbol, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(text = symbol, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
-fun ThisPcWindowContent() {
+fun FileManagerWindowContent(
+    installedApps: List<InstalledAppItem>,
+    onLaunchExternalApp: (InstalledAppItem) -> Unit
+) {
+    val rootDir = remember {
+        runCatching { Environment.getExternalStorageDirectory() }.getOrNull()
+    }
+    var currentDir by remember { mutableStateOf(rootDir) }
+    var activeTab by remember { mutableStateOf("files") } // "files" or "apps"
+
     val storageInfo = remember {
         runCatching {
             val path: File = Environment.getDataDirectory()
             val stat = StatFs(path.path)
             val totalGb = stat.totalBytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
             val availGb = stat.availableBytes.toDouble() / (1024.0 * 1024.0 * 1024.0)
-            String.format(Locale.US, "%.1f جيجابايت متاحة من %.1f جيجابايت", availGb, totalGb)
+            String.format(Locale.US, "%.1f GB متاح من %.1f GB", availGb, totalGb)
         }.getOrDefault("التخزين الداخلي (:C)")
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    val entries = remember(currentDir) {
+        runCatching {
+            currentDir?.listFiles()
+                ?.sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase(Locale.getDefault()) })
+                ?.take(80)
+                ?: emptyList()
+        }.getOrDefault(emptyList())
+    }
+
+    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        // شريط علوي للملفات والتطبيقات
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0x14FFFFFF))
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Win11AssetIcon(name = "icon_disk", fallbackText = "C:", modifier = Modifier.size(34.dp))
-            Column {
-                Text("القرص المحلي (:C)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(storageInfo, color = Color(0xFF9CA3AF), fontSize = 12.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (activeTab == "files") Color(0xFF2563EB) else Color(0x18FFFFFF))
+                        .clickable { activeTab = "files" }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("الملفات", color = Color.White, fontSize = 10.sp)
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(if (activeTab == "apps") Color(0xFF2563EB) else Color(0x18FFFFFF))
+                        .clickable { activeTab = "apps" }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("التطبيقات", color = Color.White, fontSize = 10.sp)
+                }
+            }
+
+            if (activeTab == "files" && currentDir != null && currentDir?.parentFile != null) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0x18FFFFFF))
+                        .clickable {
+                            val parent = currentDir?.parentFile
+                            if (parent != null && parent.canRead()) {
+                                currentDir = parent
+                            }
+                        }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text("↑ رجوع", color = Color(0xFF93C5FD), fontSize = 10.sp)
+                }
+            }
+        }
+
+        Text(
+            text = if (activeTab == "files") (currentDir?.path ?: storageInfo) else storageInfo,
+            color = Color(0xFF9CA3AF),
+            fontSize = 10.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+
+        if (activeTab == "files") {
+            if (entries.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "لا توجد ملفات مقروءة هنا أو يلزم منح صلاحية التخزين من إعدادات النظام",
+                        color = Color(0xFF9CA3AF),
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    items(entries, key = { it.absolutePath }) { file ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0x12FFFFFF))
+                                .clickable {
+                                    if (file.isDirectory && file.canRead()) {
+                                        currentDir = file
+                                    }
+                                }
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (file.isDirectory) "📁 ${file.name}" else "📄 ${file.name}",
+                                color = if (file.isDirectory) Color(0xFFFBBF24) else Color.White,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = if (file.isDirectory) "مجلد" else "${(file.length() / 1024).coerceAtLeast(1)} KB",
+                                color = Color(0xFF9CA3AF),
+                                fontSize = 9.sp
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(installedApps, key = { it.packageName }) { app ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0x12FFFFFF))
+                            .clickable { onLaunchExternalApp(app) }
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = app.label,
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
         }
     }
@@ -1005,7 +1424,8 @@ fun ThisPcWindowContent() {
 @Composable
 fun SettingsWindowContent(
     selectedWallpaper: String,
-    onSelectWallpaper: (String) -> Unit
+    onSelectWallpaper: (String) -> Unit,
+    onOpenNotepad: () -> Unit
 ) {
     val options = remember {
         listOf(
@@ -1017,39 +1437,57 @@ fun SettingsWindowContent(
             "wall_azul" to "الأزرق"
         )
     }
+
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text("تخصيص الخلفية", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("تخصيص الخلفية والإعدادات", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color(0x2260A5FA))
+                    .clickable { onOpenNotepad() }
+                    .padding(horizontal = 7.dp, vertical = 3.dp)
+            ) {
+                Text("فتح المفكرة", color = Color(0xFF93C5FD), fontSize = 10.sp)
+            }
+        }
+
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxSize()
         ) {
             options.forEach { (key, title) ->
                 val isSelected = selectedWallpaper == key
                 Column(
                     modifier = Modifier
-                        .width(135.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                        .width(96.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .background(if (isSelected) Color(0x332563EB) else Color(0x14FFFFFF))
                         .border(
-                            width = if (isSelected) 2.dp else 1.dp,
+                            width = if (isSelected) 1.5.dp else 1.dp,
                             color = if (isSelected) Color(0xFF60A5FA) else Color(0x22FFFFFF),
-                            shape = RoundedCornerShape(10.dp)
+                            shape = RoundedCornerShape(8.dp)
                         )
                         .clickable { onSelectWallpaper(key) }
-                        .padding(8.dp),
+                        .padding(5.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Win11AssetIcon(
                         name = key,
                         fallbackText = title,
-                        modifier = Modifier.fillMaxWidth().height(64.dp),
+                        modifier = Modifier.fillMaxWidth().height(42.dp),
                         contentScale = ContentScale.Crop
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(text = title, color = Color.White, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(text = title, color = Color.White, fontSize = 10.sp, maxLines = 1)
                 }
             }
         }
@@ -1063,4 +1501,40 @@ private fun formatCurrentTimeDate(): String {
         val now = Date()
         "${timeFmt.format(now)}\n${dateFmt.format(now)}"
     }.getOrDefault("12:00 PM\n2026/11/27")
+}
+
+private fun loadInstalledAppsSafely(context: Context): List<InstalledAppItem> {
+    return runCatching {
+        val pm = context.packageManager
+        val intent = Intent(Intent.ACTION_MAIN, null).apply {
+            addCategory(Intent.CATEGORY_LAUNCHER)
+        }
+        val resolves: List<ResolveInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            pm.queryIntentActivities(intent, 0)
+        }
+
+        resolves
+            .asSequence()
+            .mapNotNull { ri ->
+                val pkg = ri.activityInfo?.packageName
+                if (pkg.isNullOrBlank() || pkg == context.packageName) return@mapNotNull null
+                val label = runCatching { ri.loadLabel(pm).toString() }.getOrDefault(pkg)
+                val icon = runCatching { ri.loadIcon(pm) }.getOrNull()
+                InstalledAppItem(label = label, packageName = pkg, icon = icon)
+            }
+            .sortedBy { it.label.lowercase(Locale.getDefault()) }
+            .take(80)
+            .toList()
+    }.getOrDefault(emptyList())
+}
+
+private fun launchExternalAppSafely(context: Context, packageName: String) {
+    runCatching {
+        val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName) ?: return
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(launchIntent)
+    }
 }
