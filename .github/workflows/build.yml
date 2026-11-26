@@ -1,1 +1,105 @@
+name: Build Win11 Launcher APK
 
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Python and Pillow
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pillow
+
+      - name: Prepare App Icon and Drawables from assets_src
+        run: |
+          python3 - <<'EOF'
+          import os, re
+          from PIL import Image, ImageOps
+
+          src_dir = "assets_src"
+          sizes = {
+              "mipmap-mdpi": 48,
+              "mipmap-hdpi": 72,
+              "mipmap-xhdpi": 96,
+              "mipmap-xxhdpi": 144,
+              "mipmap-xxxhdpi": 192,
+          }
+
+          icon_created = False
+          if os.path.isdir(src_dir):
+              for ext in ["webp", "png", "jpg", "jpeg"]:
+                  icon_path = os.path.join(src_dir, f"app_icon.{ext}")
+                  if os.path.exists(icon_path):
+                      img = Image.open(icon_path).convert("RGBA")
+                      for folder, sz in sizes.items():
+                          out_dir = os.path.join("app/src/main/res", folder)
+                          os.makedirs(out_dir, exist_ok=True)
+                          ImageOps.fit(img, (sz, sz), method=Image.Resampling.LANCZOS).save(
+                              os.path.join(out_dir, "ic_launcher.png")
+                          )
+                      icon_created = True
+                      break
+
+          if not icon_created:
+              fallback = Image.new("RGBA", (192, 192), (0, 120, 212, 255))
+              for folder, sz in sizes.items():
+                  out_dir = os.path.join("app/src/main/res", folder)
+                  os.makedirs(out_dir, exist_ok=True)
+                  fallback.resize((sz, sz)).save(os.path.join(out_dir, "ic_launcher.png"))
+
+          drawable_dir = "app/src/main/res/drawable"
+          os.makedirs(drawable_dir, exist_ok=True)
+          valid_exts = {".png", ".jpg", ".jpeg", ".webp"}
+
+          if os.path.isdir(src_dir):
+              for fname in sorted(os.listdir(src_dir)):
+                  if fname.lower().startswith("app_icon."):
+                      continue
+                  stem, ext = os.path.splitext(fname)
+                  if ext.lower() not in valid_exts:
+                      continue
+                  clean_stem = re.sub(r"[^a-z0-9_]", "_", stem.lower())
+                  clean_stem = re.sub(r"_+", "_", clean_stem).strip("_")
+                  if not clean_stem:
+                      continue
+                  if clean_stem[0].isdigit():
+                      clean_stem = "img_" + clean_stem
+                  src_file = os.path.join(src_dir, fname)
+                  dst_file = os.path.join(drawable_dir, f"{clean_stem}{ext.lower()}")
+                  with open(src_file, "rb") as rf, open(dst_file, "wb") as wf:
+                      wf.write(rf.read())
+          EOF
+
+      - name: Ensure Gradle Wrapper exists
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            gradle wrapper --gradle-version 8.7 --distribution-type bin
+          fi
+          chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: win11-launcher-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
