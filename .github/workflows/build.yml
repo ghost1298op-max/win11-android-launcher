@@ -104,14 +104,15 @@ jobs:
           fi
           chmod +x gradlew
 
-      - name: Build Debug APK
-        run: |
+            - name: Build Debug APK
+              run: |
           set -o pipefail
           ./gradlew assembleDebug --console=plain 2>&1 | tee build.log || {
             echo "=== ACTUAL ERRORS ==="
-            grep -E "e: |Execution failed for task|FAILURE:|Caused by:" build.log | tail -n 35
+            grep -B 2 -A 12 -E "checkDebugAarMetadata|compileSdk|AAR metadata check failed|Execution failed for task|FAILURE:|Caused by:" build.log | head -n 45
             exit 1
           }
+
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
