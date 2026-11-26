@@ -21,15 +21,16 @@ jobs:
 
       - name: Configure Android SDK
         run: |
-          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/android-sdk}}"
-          mkdir -p "$SDK_ROOT/licenses"
-          printf "24333f8a63b6825ea9c5514f83c2829b004d1fee\n" > "$SDK_ROOT/licenses/android-sdk-license"
-          printf "84831b9409646a918e30573bab4c9c91346d8abd\n" > "$SDK_ROOT/licenses/android-sdk-preview-license"
-          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
-          if [ -x "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
-            yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" "platforms;android-34" "build-tools;34.0.0" || true
-          fi
+       SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/android-sdk}}"
+       mkdir -p "$SDK_ROOT/licenses"
+       printf "24333f8a63b6825ea9c5514f83c2829b004d1fee\n" > "$SDK_ROOT/licenses/android-sdk-license"
+       printf "84831b9409646a918e30573bab4c9c91346d8abd\n" > "$SDK_ROOT/licenses/android-sdk-preview-license"
+       echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+       echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+       if [ -x "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" ]; then
+         yes | "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --sdk_root="$SDK_ROOT" "platforms;android-35" "build-tools;35.0.0" || true
+       fi
+
 
       - name: Set up Python and Pillow
         uses: actions/setup-python@v5
