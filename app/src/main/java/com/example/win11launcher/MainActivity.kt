@@ -28,12 +28,12 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -124,8 +124,8 @@ data class DesktopWindow(
     val iconName: String,
     val kind: WindowKind,
     val url: String = "https://www.google.com",
-    val offsetX: Float = 24f,
-    val offsetY: Float = 16f,
+    val offsetX: Float = 18f,
+    val offsetY: Float = 14f,
     val isMaximized: Boolean = false,
     val isMinimized: Boolean = false,
     val zIndex: Float = 10f
@@ -215,7 +215,7 @@ fun Win11BootScreen(onSkip: () -> Unit) {
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = LinearEasing),
+            animation = tween(durationMillis = 950, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "spinner"
@@ -224,38 +224,38 @@ fun Win11BootScreen(onSkip: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF04060A))
+            .background(Color(0xFF030508))
             .clickable { onSkip() },
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
-            StartLogoMark(sizeDp = 52)
+            StartLogoMark(sizeDp = 56)
 
-            Canvas(modifier = Modifier.size(24.dp)) {
+            Canvas(modifier = Modifier.size(22.dp)) {
                 drawArc(
                     color = Color(0xFF38BDF8),
                     startAngle = angle,
-                    sweepAngle = 240f,
+                    sweepAngle = 250f,
                     useCenter = false,
-                    style = Stroke(width = 2.8.dp.toPx(), cap = StrokeCap.Round)
+                    style = Stroke(width = 2.6.dp.toPx(), cap = StrokeCap.Round)
                 )
             }
 
             Text(
                 text = "Windows 11",
-                color = Color(0xFFE2E8F0),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
+                color = Color(0xFFF1F5F9),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
             )
         }
     }
 }
 
 @Composable
-fun StartLogoMark(sizeDp: Int = 18) {
+fun StartLogoMark(sizeDp: Int = 16) {
     val half = (sizeDp / 2).coerceAtLeast(6)
     val gap = 2.dp
     Column(verticalArrangement = Arrangement.spacedBy(gap)) {
@@ -297,8 +297,8 @@ fun drawableBitmapOrNull(context: Context, name: String): ImageBitmap? {
             val resId = context.resources.getIdentifier(name, "drawable", context.packageName)
             if (resId != 0) {
                 val d = ContextCompat.getDrawable(context, resId)
-                val w = d?.intrinsicWidth?.coerceAtLeast(1)?.coerceAtMost(900) ?: 1
-                val h = d?.intrinsicHeight?.coerceAtLeast(1)?.coerceAtMost(900) ?: 1
+                val w = d?.intrinsicWidth?.coerceAtLeast(1)?.coerceAtMost(1080) ?: 1
+                val h = d?.intrinsicHeight?.coerceAtLeast(1)?.coerceAtMost(1080) ?: 1
                 d?.toBitmap(w, h)?.asImageBitmap()
             } else {
                 null
@@ -324,7 +324,6 @@ fun Win11AssetIcon(
             contentScale = contentScale
         )
     } else if (name == "icon_youtube") {
-        // أيقونة يوتيوب مدمجة واضحة إذا لم يوجد ملف خارجي
         Box(
             modifier = modifier
                 .clip(RoundedCornerShape(7.dp))
@@ -334,7 +333,7 @@ fun Win11AssetIcon(
             Text(
                 text = "▶",
                 color = Color.White,
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
             )
         }
@@ -349,7 +348,7 @@ fun Win11AssetIcon(
             Text(
                 text = fallbackText.take(2),
                 color = Color.White,
-                fontSize = 10.sp,
+                fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1
             )
@@ -403,7 +402,7 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
             val cur = windows[existingIndex]
             windows[existingIndex] = cur.copy(isMinimized = false, zIndex = zCounter)
         } else {
-            val shift = (windows.size % 4) * 14f
+            val shift = (windows.size % 4) * 12f
             windows.add(
                 DesktopWindow(
                     id = id,
@@ -411,8 +410,8 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                     iconName = iconName,
                     kind = kind,
                     url = url,
-                    offsetX = 16f + shift,
-                    offsetY = 12f + shift,
+                    offsetX = 12f + shift,
+                    offsetY = 10f + shift,
                     isMaximized = false,
                     isMinimized = false,
                     zIndex = zCounter
@@ -508,7 +507,8 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
         loadInstalledAppsSafely(context)
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF070B12))) {
+    // حاوية كاملة الشاشة بدون أي فراغات جانبية أو علوية
+    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF05080F))) {
         val wallBmp = drawableBitmapOrNull(context, selectedWallpaper)
         if (wallBmp != null) {
             Image(
@@ -519,11 +519,11 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
             )
         }
 
-        // مساحة سطح المكتب الكاملة مع دعم الضغط المطوّل (بديل الزر الأيمن)
+        // سطح المكتب مع دعم النقر والضغط المطوّل (بديل الزر الأيمن)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = 38.dp)
+                .padding(bottom = 36.dp)
                 .combinedClickable(
                     onClick = { closeAllPopups() },
                     onLongClick = {
@@ -536,8 +536,8 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
             Column(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 DesktopIconItem(
@@ -575,22 +575,22 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .width(185.dp)
+                        .width(175.dp)
                         .zIndex(97f),
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFA1C212B),
+                    shape = RoundedCornerShape(9.dp),
+                    color = Color(0xFA1A1F29),
                     border = BorderStroke(1.dp, Color(0x33FFFFFF))
                 ) {
                     Column(
-                        modifier = Modifier.padding(6.dp),
+                        modifier = Modifier.padding(5.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        ContextMenuRow("تحديث سطح المكتب") { closeAllPopups() }
-                        ContextMenuRow("فتح المفكرة") {
-                            openOrFocusWindow("win_notes", "المفكرة", "icon_notepad", WindowKind.NOTEPAD)
-                        }
-                        ContextMenuRow("تغيير الخلفية") {
+                        ContextMenuRow("تحديث") { closeAllPopups() }
+                        ContextMenuRow("الإعدادات والخلفيات") {
                             openOrFocusWindow("win_settings", "الإعدادات", "icon_settings", WindowKind.SETTINGS)
+                        }
+                        ContextMenuRow("المفكرة") {
+                            openOrFocusWindow("win_notes", "المفكرة", "icon_notepad", WindowKind.NOTEPAD)
                         }
                         ContextMenuRow("تصغير كل النوافذ") {
                             for (i in windows.indices) {
@@ -602,7 +602,7 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 }
             }
 
-            // النوافذ المفتوحة بأبعاد متناسبة مع شاشة الهاتف
+            // النوافذ المفتوحة بأبعاد مدمجة للهاتف
             windows.forEachIndexed { idx, win ->
                 if (!win.isMinimized) {
                     FloatingDesktopWindow(
@@ -614,7 +614,7 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                         onMove = { dx, dy ->
                             if (!win.isMaximized) {
                                 windows[idx] = win.copy(
-                                    offsetX = (win.offsetX + dx).coerceIn(0f, 340f),
+                                    offsetX = (win.offsetX + dx).coerceIn(0f, 360f),
                                     offsetY = (win.offsetY + dy).coerceIn(0f, 220f)
                                 )
                             }
@@ -656,20 +656,20 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(bottom = 4.dp)
-                        .width(310.dp)
-                        .height(235.dp)
+                        .width(295.dp)
+                        .height(215.dp)
                         .zIndex(95f),
                     shape = RoundedCornerShape(10.dp),
-                    color = Color(0xF8181C24),
+                    color = Color(0xF8161A22),
                     border = BorderStroke(1.dp, Color(0x26FFFFFF))
                 ) {
                     Column(
-                        modifier = Modifier.fillMaxSize().padding(8.dp),
+                        modifier = Modifier.fillMaxSize().padding(7.dp),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             StartShortcutChip("هذا الكمبيوتر") {
                                 openOrFocusWindow("win_pc", "هذا الكمبيوتر", "icon_computer", WindowKind.THIS_PC)
@@ -685,33 +685,33 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                         Text(
                             text = "التطبيقات (${filteredApps.size})",
                             color = Color(0xFF93C5FD),
-                            fontSize = 10.sp,
+                            fontSize = 9.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(top = 4.dp)
+                            modifier = Modifier.padding(top = 3.dp)
                         )
 
                         LazyColumn(
-                            modifier = Modifier.weight(1f).fillMaxWidth().padding(vertical = 3.dp),
-                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                            modifier = Modifier.weight(1f).fillMaxWidth().padding(vertical = 2.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             items(filteredApps, key = { it.packageName }) { app ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .clip(RoundedCornerShape(6.dp))
+                                        .clip(RoundedCornerShape(5.dp))
                                         .background(Color(0x12FFFFFF))
                                         .clickable {
                                             closeAllPopups()
                                             launchExternalAppSafely(context, app.packageName)
                                         }
-                                        .padding(horizontal = 7.dp, vertical = 5.dp),
+                                        .padding(horizontal = 6.dp, vertical = 4.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     val appBmp = remember(app.packageName) {
                                         runCatching {
                                             val d = app.icon
-                                            val w = d?.intrinsicWidth?.coerceIn(16, 48) ?: 32
-                                            val h = d?.intrinsicHeight?.coerceIn(16, 48) ?: 32
+                                            val w = d?.intrinsicWidth?.coerceIn(16, 44) ?: 28
+                                            val h = d?.intrinsicHeight?.coerceIn(16, 44) ?: 28
                                             d?.toBitmap(w, h)?.asImageBitmap()
                                         }.getOrNull()
                                     }
@@ -719,14 +719,14 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                                         Image(
                                             bitmap = appBmp,
                                             contentDescription = app.label,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(16.dp)
                                         )
                                     }
-                                    Spacer(modifier = Modifier.width(7.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = app.label,
                                         color = Color.White,
-                                        fontSize = 11.sp,
+                                        fontSize = 10.5.sp,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -737,20 +737,20 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                         HorizontalDivider(color = Color(0x22FFFFFF))
 
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 3.dp),
+                            modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Windows 11", color = Color(0xFF9CA3AF), fontSize = 10.sp)
+                            Text("Windows 11", color = Color(0xFF9CA3AF), fontSize = 9.5.sp)
                             Text(
                                 text = "إغلاق اللانشر",
                                 color = Color(0xFFF87171),
-                                fontSize = 10.sp,
+                                fontSize = 9.5.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(5.dp))
                                     .clickable { onExitLauncher() }
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .padding(horizontal = 5.dp, vertical = 2.dp)
                             )
                         }
                     }
@@ -761,20 +761,20 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(start = 8.dp, bottom = 4.dp)
-                        .width(195.dp)
+                        .padding(start = 6.dp, bottom = 4.dp)
+                        .width(185.dp)
                         .zIndex(96f),
-                    shape = RoundedCornerShape(9.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = Color(0xF81E232C),
                     border = BorderStroke(1.dp, Color(0x26FFFFFF))
                 ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
+                    Column(modifier = Modifier.padding(7.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("الصوت", color = Color.White, fontSize = 10.sp)
-                            Text("$volumePercent%", color = Color(0xFF60A5FA), fontSize = 10.sp)
+                            Text("الصوت", color = Color.White, fontSize = 9.5.sp)
+                            Text("$volumePercent%", color = Color(0xFF60A5FA), fontSize = 9.5.sp)
                         }
                         Slider(
                             value = currentVolume.toFloat(),
@@ -793,19 +793,19 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(start = 8.dp, bottom = 4.dp)
-                        .width(225.dp)
+                        .padding(start = 6.dp, bottom = 4.dp)
+                        .width(215.dp)
                         .zIndex(96f),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(9.dp),
                     color = Color(0xF81E232C),
                     border = BorderStroke(1.dp, Color(0x26FFFFFF))
                 ) {
                     Column(
-                        modifier = Modifier.padding(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.padding(7.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        Text("المركز السريع", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("المركز السريع", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.5.sp)
+                        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
                             QuickTile("الواي فاي", "icon_network", active = true)
                             QuickTile("الإعدادات", "icon_settings", active = false) {
                                 openOrFocusWindow("win_settings", "الإعدادات", "icon_settings", WindowKind.SETTINGS)
@@ -814,7 +814,7 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                         Text(
                             text = if (isCharging) "البطارية: $batteryLevel% (يشحن)" else "البطارية: $batteryLevel%",
                             color = if (isCharging) Color(0xFF4ADE80) else Color(0xFFE5E7EB),
-                            fontSize = 10.sp
+                            fontSize = 9.5.sp
                         )
                     }
                 }
@@ -824,47 +824,47 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(start = 8.dp, bottom = 4.dp)
-                        .width(175.dp)
+                        .padding(start = 6.dp, bottom = 4.dp)
+                        .width(165.dp)
                         .zIndex(96f),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(9.dp),
                     color = Color(0xF81E232C),
                     border = BorderStroke(1.dp, Color(0x26FFFFFF))
                 ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
-                        Text("التاريخ والوقت", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Text(nowText, color = Color(0xFF93C5FD), fontSize = 10.sp)
+                    Column(modifier = Modifier.padding(7.dp)) {
+                        Text("التاريخ والوقت", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.5.sp)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(nowText, color = Color(0xFF93C5FD), fontSize = 9.5.sp)
                     }
                 }
             }
         }
 
-        // شريط المهام السفلي (38.dp) مع علامة Start الواضحة والتاريخ والوقت المرتب
+        // شريط المهام السفلي (36.dp)
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(38.dp)
+                .height(36.dp)
                 .zIndex(100f),
-            color = Color(0xF212161E),
+            color = Color(0xF511151D),
             border = BorderStroke(1.dp, Color(0x1AFFFFFF))
         ) {
             Row(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 5.dp),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // التاريخ والوقت والبطارية والصوت
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
                         text = nowText,
                         color = Color.White,
-                        fontSize = 8.5.sp,
-                        lineHeight = 10.sp,
+                        fontSize = 8.sp,
+                        lineHeight = 9.5.sp,
                         maxLines = 2,
                         textAlign = TextAlign.Center,
                         modifier = Modifier
@@ -874,7 +874,7 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                                 closeAllPopups()
                                 showCalendarPopup = next
                             }
-                            .padding(horizontal = 3.dp, vertical = 1.dp)
+                            .padding(horizontal = 2.dp, vertical = 1.dp)
                     )
 
                     DynamicBatteryIndicator(
@@ -891,7 +891,7 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                         name = volumeIconName,
                         fallbackText = "VOL",
                         modifier = Modifier
-                            .size(14.dp)
+                            .size(13.dp)
                             .clickable {
                                 val next = !showVolumeSlider
                                 closeAllPopups()
@@ -903,7 +903,7 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                         name = "icon_network",
                         fallbackText = "NET",
                         modifier = Modifier
-                            .size(14.dp)
+                            .size(13.dp)
                             .clickable {
                                 val next = !showQuickSettings
                                 closeAllPopups()
@@ -914,13 +914,13 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
 
                 // علامة Start + البحث + النوافذ المفتوحة
                 Row(
-                    modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(horizontal = 5.dp),
+                    modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(28.dp)
+                            .size(26.dp)
                             .clip(RoundedCornerShape(6.dp))
                             .background(if (showStartMenu) Color(0x3860A5FA) else Color(0x18FFFFFF))
                             .clickable {
@@ -930,7 +930,7 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        StartLogoMark(sizeDp = 16)
+                        StartLogoMark(sizeDp = 15)
                     }
 
                     OutlinedTextField(
@@ -939,19 +939,19 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                             searchQuery = newText
                             if (newText.isNotBlank()) showStartMenu = true
                         },
-                        placeholder = { Text("بحث", fontSize = 9.sp, color = Color(0xFF9CA3AF)) },
+                        placeholder = { Text("بحث", fontSize = 8.5.sp, color = Color(0xFF9CA3AF)) },
                         singleLine = true,
-                        modifier = Modifier.width(88.dp).height(30.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        textStyle = TextStyle(color = Color.White, fontSize = 10.sp)
+                        modifier = Modifier.width(82.dp).height(28.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        textStyle = TextStyle(color = Color.White, fontSize = 9.5.sp)
                     )
 
                     windows.forEachIndexed { index, w ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
-                                .height(26.dp)
-                                .clip(RoundedCornerShape(6.dp))
+                                .height(24.dp)
+                                .clip(RoundedCornerShape(5.dp))
                                 .background(if (!w.isMinimized) Color(0x2860A5FA) else Color(0x14FFFFFF))
                                 .clickable {
                                     zCounter += 1f
@@ -976,7 +976,7 @@ fun Win11LauncherRoot(onExitLauncher: () -> Unit) {
                     }
                 }
 
-                // زر تصغير الكل
+                // تصغير الكل
                 Box(
                     modifier = Modifier
                         .width(5.dp)
@@ -999,11 +999,11 @@ fun ContextMenuRow(title: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(5.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .padding(horizontal = 7.dp, vertical = 5.dp)
     ) {
-        Text(text = title, color = Color.White, fontSize = 11.sp)
+        Text(text = title, color = Color.White, fontSize = 10.sp)
     }
 }
 
@@ -1011,12 +1011,12 @@ fun ContextMenuRow(title: String, onClick: () -> Unit) {
 fun StartShortcutChip(label: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(5.dp))
             .background(Color(0xFF2563EB))
             .clickable(onClick = onClick)
-            .padding(horizontal = 7.dp, vertical = 4.dp)
+            .padding(horizontal = 6.dp, vertical = 3.dp)
     ) {
-        Text(text = label, color = Color.White, fontSize = 9.5.sp, fontWeight = FontWeight.Medium)
+        Text(text = label, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -1028,22 +1028,22 @@ fun DesktopIconItem(
 ) {
     Column(
         modifier = Modifier
-            .width(56.dp)
+            .width(52.dp)
             .clip(RoundedCornerShape(6.dp))
             .clickable(onClick = onClick)
-            .padding(3.dp),
+            .padding(2.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Win11AssetIcon(
             name = iconName,
             fallbackText = label,
-            modifier = Modifier.size(26.dp)
+            modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = label,
             color = Color.White,
-            fontSize = 9.sp,
+            fontSize = 8.5.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center
@@ -1073,10 +1073,10 @@ fun DynamicBatteryIndicator(
         Text(
             text = if (isCharging) "$level%⚡" else "$level%",
             color = Color.White,
-            fontSize = 8.5.sp,
+            fontSize = 8.sp,
             fontWeight = FontWeight.Medium
         )
-        Canvas(modifier = Modifier.width(16.dp).height(9.dp)) {
+        Canvas(modifier = Modifier.width(15.dp).height(8.5.dp)) {
             val bodyWidth = size.width - 2.dp.toPx()
             val bodyHeight = size.height
             drawRoundRect(
@@ -1114,20 +1114,20 @@ fun QuickTile(
 ) {
     Surface(
         modifier = Modifier
-            .width(98.dp)
-            .height(38.dp)
-            .clip(RoundedCornerShape(7.dp))
+            .width(92.dp)
+            .height(34.dp)
+            .clip(RoundedCornerShape(6.dp))
             .clickable(onClick = onClick),
         color = if (active) Color(0xFF2563EB) else Color(0x22FFFFFF),
-        shape = RoundedCornerShape(7.dp)
+        shape = RoundedCornerShape(6.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 6.dp),
+            modifier = Modifier.padding(horizontal = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Win11AssetIcon(name = iconName, fallbackText = title, modifier = Modifier.size(14.dp))
-            Text(text = title, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Medium)
+            Win11AssetIcon(name = iconName, fallbackText = title, modifier = Modifier.size(13.dp))
+            Text(text = title, color = Color.White, fontSize = 9.5.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -1155,25 +1155,25 @@ fun FloatingDesktopWindow(
             .zIndex(window.zIndex)
     } else {
         Modifier
-            .width(310.dp)
-            .height(215.dp)
+            .width(285.dp)
+            .height(195.dp)
             .offset { IntOffset(window.offsetX.roundToInt(), window.offsetY.roundToInt()) }
             .zIndex(window.zIndex)
     }
 
     Surface(
         modifier = modifier.clickable(onClick = onFocus),
-        shape = if (window.isMaximized) RoundedCornerShape(0.dp) else RoundedCornerShape(9.dp),
-        color = Color(0xFA181C24),
-        border = BorderStroke(1.dp, Color(0x28FFFFFF))
+        shape = if (window.isMaximized) RoundedCornerShape(0.dp) else RoundedCornerShape(8.dp),
+        color = Color(0xFA171B23),
+        border = BorderStroke(1.dp, Color(0x26FFFFFF))
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // شريط العنوان القابل للسحب
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(26.dp)
-                    .background(Color(0xFF222733))
+                    .height(24.dp)
+                    .background(Color(0xFF202530))
                     .pointerInput(window.id, window.isMaximized) {
                         detectDragGestures(
                             onDragStart = { onFocus() },
@@ -1183,24 +1183,24 @@ fun FloatingDesktopWindow(
                             }
                         )
                     }
-                    .padding(horizontal = 7.dp),
+                    .padding(horizontal = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     Win11AssetIcon(
                         name = window.iconName,
                         fallbackText = window.title,
-                        modifier = Modifier.size(13.dp)
+                        modifier = Modifier.size(12.dp)
                     )
                     Text(
                         text = window.title,
                         color = Color.White,
-                        fontSize = 10.sp,
+                        fontSize = 9.5.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -1214,7 +1214,7 @@ fun FloatingDesktopWindow(
                 }
             }
 
-            Box(modifier = Modifier.fillMaxSize().padding(6.dp)) {
+            Box(modifier = Modifier.fillMaxSize().padding(5.dp)) {
                 when (window.kind) {
                     WindowKind.THIS_PC -> FileManagerWindowContent(
                         installedApps = installedApps,
@@ -1231,9 +1231,9 @@ fun FloatingDesktopWindow(
                         var address by remember(window.url) { mutableStateOf(window.url) }
                         var loadUrl by remember(window.url) { mutableStateOf(window.url) }
                         Column(modifier = Modifier.fillMaxSize()) {
-                            // شريط رابط مدمج وصغير حتى لا يأخذ مساحة كبيرة
+                            // شريط رابط نحيف جداً
                             Row(
-                                modifier = Modifier.fillMaxWidth().height(28.dp),
+                                modifier = Modifier.fillMaxWidth().height(24.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
@@ -1242,28 +1242,28 @@ fun FloatingDesktopWindow(
                                     onValueChange = { updatedAddr -> address = updatedAddr },
                                     singleLine = true,
                                     modifier = Modifier.weight(1f).fillMaxHeight(),
-                                    textStyle = TextStyle(color = Color.White, fontSize = 9.5.sp)
+                                    textStyle = TextStyle(color = Color.White, fontSize = 9.sp)
                                 )
                                 Box(
                                     modifier = Modifier
                                         .fillMaxHeight()
-                                        .clip(RoundedCornerShape(5.dp))
+                                        .clip(RoundedCornerShape(4.dp))
                                         .background(Color(0xFF2563EB))
                                         .clickable {
                                             val clean = if (address.startsWith("http")) address else "https://$address"
                                             loadUrl = clean
                                         }
-                                        .padding(horizontal = 8.dp),
+                                        .padding(horizontal = 7.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("ذهاب", fontSize = 9.5.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                                    Text("ذهاب", fontSize = 9.sp, color = Color.White, fontWeight = FontWeight.Medium)
                                 }
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(3.dp))
                             AndroidView(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .clip(RoundedCornerShape(6.dp)),
+                                    .clip(RoundedCornerShape(5.dp)),
                                 factory = { ctx ->
                                     WebView(ctx).apply {
                                         runCatching {
@@ -1295,24 +1295,24 @@ fun FloatingDesktopWindow(
 
                         Column(
                             modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(savedBadge, color = Color(0xFF4ADE80), fontSize = 9.5.sp)
+                                Text(savedBadge, color = Color(0xFF4ADE80), fontSize = 9.sp)
                                 Button(
                                     onClick = {
                                         prefs.edit().putString("saved_note", noteText).apply()
                                         savedBadge = "تم الحفظ ✓"
                                     },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
-                                    modifier = Modifier.height(24.dp),
+                                    contentPadding = PaddingValues(horizontal = 7.dp, vertical = 0.dp),
+                                    modifier = Modifier.height(22.dp),
                                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB))
                                 ) {
-                                    Text("حفظ", fontSize = 9.5.sp, color = Color.White)
+                                    Text("حفظ", fontSize = 9.sp, color = Color.White)
                                 }
                             }
                             OutlinedTextField(
@@ -1322,9 +1322,9 @@ fun FloatingDesktopWindow(
                                     prefs.edit().putString("saved_note", updatedNote).apply()
                                     savedBadge = "محفوظ تلقائياً"
                                 },
-                                placeholder = { Text("اكتب ملاحظاتك هنا...", color = Color(0xFF9CA3AF), fontSize = 10.sp) },
+                                placeholder = { Text("اكتب ملاحظاتك هنا...", color = Color(0xFF9CA3AF), fontSize = 9.5.sp) },
                                 modifier = Modifier.fillMaxSize(),
-                                textStyle = TextStyle(color = Color.White, fontSize = 11.sp)
+                                textStyle = TextStyle(color = Color.White, fontSize = 10.sp)
                             )
                         }
                     }
@@ -1342,13 +1342,13 @@ fun WindowControlBtn(
 ) {
     Box(
         modifier = Modifier
-            .size(20.dp)
+            .size(18.dp)
             .clip(RoundedCornerShape(4.dp))
             .background(if (isClose) Color(0x33EF4444) else Color(0x18FFFFFF))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = symbol, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        Text(text = symbol, color = Color.White, fontSize = 8.5.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -1382,30 +1382,30 @@ fun FileManagerWindowContent(
         }.getOrDefault(emptyList())
     }
 
-    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+    Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(5.dp))
                         .background(if (activeTab == "files") Color(0xFF2563EB) else Color(0x18FFFFFF))
                         .clickable { activeTab = "files" }
-                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
-                    Text("الملفات", color = Color.White, fontSize = 9.5.sp)
+                    Text("الملفات", color = Color.White, fontSize = 9.sp)
                 }
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(5.dp))
                         .background(if (activeTab == "apps") Color(0xFF2563EB) else Color(0x18FFFFFF))
                         .clickable { activeTab = "apps" }
-                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
-                    Text("التطبيقات", color = Color.White, fontSize = 9.5.sp)
+                    Text("التطبيقات", color = Color.White, fontSize = 9.sp)
                 }
             }
 
@@ -1420,9 +1420,9 @@ fun FileManagerWindowContent(
                                 currentDir = parent
                             }
                         }
-                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
-                    Text("↑ رجوع", color = Color(0xFF93C5FD), fontSize = 9.5.sp)
+                    Text("↑ رجوع", color = Color(0xFF93C5FD), fontSize = 9.sp)
                 }
             }
         }
@@ -1430,7 +1430,7 @@ fun FileManagerWindowContent(
         Text(
             text = if (activeTab == "files") (currentDir?.path ?: storageInfo) else storageInfo,
             color = Color(0xFF9CA3AF),
-            fontSize = 9.sp,
+            fontSize = 8.5.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -1441,14 +1441,14 @@ fun FileManagerWindowContent(
                     Text(
                         text = "لا توجد ملفات مقروءة هنا أو يلزم منح صلاحية التخزين من إعدادات النظام",
                         color = Color(0xFF9CA3AF),
-                        fontSize = 10.sp,
+                        fontSize = 9.5.sp,
                         textAlign = TextAlign.Center
                     )
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     items(entries, key = { it.absolutePath }) { file ->
                         Row(
@@ -1461,14 +1461,14 @@ fun FileManagerWindowContent(
                                         currentDir = file
                                     }
                                 }
-                                .padding(horizontal = 7.dp, vertical = 5.dp),
+                                .padding(horizontal = 6.dp, vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = if (file.isDirectory) "📁 ${file.name}" else "📄 ${file.name}",
                                 color = if (file.isDirectory) Color(0xFFFBBF24) else Color.White,
-                                fontSize = 10.sp,
+                                fontSize = 9.5.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
@@ -1476,7 +1476,7 @@ fun FileManagerWindowContent(
                             Text(
                                 text = if (file.isDirectory) "مجلد" else "${(file.length() / 1024).coerceAtLeast(1)} KB",
                                 color = Color(0xFF9CA3AF),
-                                fontSize = 8.5.sp
+                                fontSize = 8.sp
                             )
                         }
                     }
@@ -1485,7 +1485,7 @@ fun FileManagerWindowContent(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 items(installedApps, key = { it.packageName }) { app ->
                     Row(
@@ -1494,13 +1494,13 @@ fun FileManagerWindowContent(
                             .clip(RoundedCornerShape(5.dp))
                             .background(Color(0x12FFFFFF))
                             .clickable { onLaunchExternalApp(app) }
-                            .padding(horizontal = 7.dp, vertical = 5.dp),
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = app.label,
                             color = Color.White,
-                            fontSize = 10.sp,
+                            fontSize = 9.5.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -1531,14 +1531,14 @@ fun SettingsWindowContent(
 
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("تخصيص الخلفية", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            Text("تخصيص الخلفية", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 10.sp)
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(5.dp))
@@ -1546,39 +1546,39 @@ fun SettingsWindowContent(
                     .clickable { onOpenNotepad() }
                     .padding(horizontal = 6.dp, vertical = 2.dp)
             ) {
-                Text("المفكرة", color = Color(0xFF93C5FD), fontSize = 9.5.sp)
+                Text("المفكرة", color = Color(0xFF93C5FD), fontSize = 9.sp)
             }
         }
 
         FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.fillMaxSize()
         ) {
             options.forEach { (key, title) ->
                 val isSelected = selectedWallpaper == key
                 Column(
                     modifier = Modifier
-                        .width(88.dp)
-                        .clip(RoundedCornerShape(7.dp))
+                        .width(82.dp)
+                        .clip(RoundedCornerShape(6.dp))
                         .background(if (isSelected) Color(0x332563EB) else Color(0x14FFFFFF))
                         .border(
                             width = if (isSelected) 1.5.dp else 1.dp,
                             color = if (isSelected) Color(0xFF60A5FA) else Color(0x22FFFFFF),
-                            shape = RoundedCornerShape(7.dp)
+                            shape = RoundedCornerShape(6.dp)
                         )
                         .clickable { onSelectWallpaper(key) }
-                        .padding(4.dp),
+                        .padding(3.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Win11AssetIcon(
                         name = key,
                         fallbackText = title,
-                        modifier = Modifier.fillMaxWidth().height(38.dp),
+                        modifier = Modifier.fillMaxWidth().height(34.dp),
                         contentScale = ContentScale.Crop
                     )
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = title, color = Color.White, fontSize = 9.sp, maxLines = 1)
+                    Text(text = title, color = Color.White, fontSize = 8.5.sp, maxLines = 1)
                 }
             }
         }
